@@ -1,0 +1,243 @@
+---
+title: "Final Project Data Mining"
+author: "Munir Yousef"
+date: "11/14/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+#libraries needed
+library(tidyverse)
+table_formatting_packages <- c("knitr", "kableExtra")
+library(caret)
+library(ggalt)
+library(RWeka)
+library(e1071)
+library(NbClust)
+#load dataset
+
+df <- read.csv("C:/Users/Munir/Desktop/ADS Masters SYR/Fall 2020/Data Analytics/project/heart.csv")
+
+head(df)
+
+
+
+
+
+
+#preprocessing steps
+
+#changing column names to be more meaningful
+newcolnames <- c("age",
+           "sex",
+           "chest_pain_type",
+           "resting_blood_pressure",
+           "serum_cholesterol",
+           "fasting_blood_sugar",
+           "resting_ecg",
+           "max_heart_rate_achieved",
+           "exercise_induced_angina",
+           "st_depression_exercise",
+           "peak_exercise_st",
+           "num_major_vessels",
+           "thalassemia",
+           "diagnosis")
+
+
+#Apply column names to df
+colnames(df) <- newcolnames
+
+
+#detailed look at dataframe
+df %>% glimpse()
+
+
+label <- data.frame(
+age = "age in years", 
+  sex = "sex of the patient",
+ chest_pain_type = "chest pain type",
+  resting_blood_pressure = "resting blood pressure (in mm Hg on admission to the hospital)",
+  serum_cholesterol_mg_per_dl = "serum cholestoral in mg/dl",
+  fasting_blood_sugar_gt_120_mg_per_dl = "fasting blood sugar > 120 mg/dl",
+  resting_ekg_results = "resting electrocardiographic results",
+  max_heart_rate_achieved = "maximum heart rate achieved (beats per minute)",
+  exercise_induced_angina = "exercise induced angina",
+  oldpeak_eq_st_depression = "ST depression induced by exercise relative to rest, a    measure of abnormality in electrocardiograms",
+  slope_of_peak_exercise_st_segment = "the slope of the peak exercise ST segment",
+  num_major_vessels = "number of major vessels colored by flourosopy",
+  thal = "results of thallium stress test measuring blood flow to the heart",
+  heart_disease_present = "Whether or not a patient has heart disease"
+)
+
+vtable::vtable(df, labels = label, factor.limit = 0)
+
+
+
+
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+
+#Exploratory data analysis ggplots, box plots and charts
+
+#visualize the sex distribution
+sexDist <- ggplot(data = df) +
+  geom_histogram(mapping = aes(x = sex), binwidth = 0.5)
+
+sexDist
+
+#visualize the ages of patients 
+ageDist <- ggplot(data = df) +
+  geom_histogram(mapping = aes(x = age), binwidth = 0.5)
+
+ageDist
+
+
+#diagnosis disease by age
+plot1 <- ggplot(data=df, aes(x=age, fill=as.factor(diagnosis)))+
+  geom_bar(alpha=.5)+
+  ggtitle("Age") +
+  scale_fill_manual(values = c('red', 'green'),name = "Disease", labels = c("Yes", "No"))
+
+plot1
+
+
+
+
+#diagnosis by exercise induced angina
+plot2 <- ggplot(data=df, aes(x=exercise_induced_angina, fill=as.factor(diagnosis)))+
+  geom_density(alpha=.5)+
+  ggtitle("Exercise Induced Angina") +
+  scale_fill_manual(values = c('red', 'green'),name = "Disease", labels = c("Yes", "No"))
+
+plot2
+
+#diagnosis by sex
+plot3 <- ggplot(data=df, aes(x=sex, fill=as.factor(diagnosis)))+
+      geom_bar(alpha=.5, color="black")+
+      ggtitle("Sex") +
+      scale_fill_manual(values = c('red', 'green'),name = "Disease", labels = c("Yes", "No"))
+
+plot3
+
+#diagnosis by chest type
+plot4 <- ggplot(data=df, aes(x=chest_pain_type, fill=as.factor(diagnosis)))+
+  geom_bar(alpha=.5, color="black")+
+  ggtitle("Chest Pain type") +
+  scale_fill_manual(values = c('red', 'green'),name = "Disease", labels = c("Yes", "No"))
+
+plot4
+
+
+
+plot5 <- ggplot(data=df, aes(x=resting_blood_pressure, fill=as.factor(diagnosis)))+
+  geom_bar(alpha=.5, color="black")+
+  ggtitle("Chest Pain type") +
+  scale_fill_manual(values = c('red', 'green'),name = "Disease", labels = c("Yes", "No"))
+
+plot5
+
+
+
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r}
+
+#splitting dataset into train and test set
+
+
+partition <- createDataPartition(df$diagnosis, p = 0.7, list = FALSE)
+
+#create train set
+trainset <- df[partition, ]
+
+cat("The dimension of the training set is (", dim(trainset), ")")
+
+
+#create test set
+testset <- df[-partition, ]
+
+cat("The dimension of test set is (", dim(df), ")")
+
+
+xtrain <- trainset[-length(trainset)]
+
+xtest <- testset[-length(testset)]
+
+xytrain <- bind_cols(xtrain, y = trainset$diagnosis)
+
+xytest <- bind_cols(xtest, y = testset$diagnosis)
+
+
+
+
+
+#create x y train variables for predictive models
+xtrain <- xtrain
+ytrain <- xytrain$y
+
+xtest <- xtest
+ytest <- xytest$y
+
+ntr <- nrow(xytrain)
+nte <- nrow(xytest)
+
+
+library(rpart)
+library(rpart.plot)
+fit <- rpart(ytrain~., data = xtrain, method = 'class')
+rpart.plot(fit, extra = 106)
+
+
+
+fit <- rpart(ytest~., data = xtest, method = 'class')
+rpart.plot(fit, extra = 106)
+
+
+
+
+
+
+```
+
+
+
+
+
+```{r}
+
+#Building our predictions
+
+predict(fit, df, type = 'class')
+
+
+predictX <-predict(fit, df, type = 'class')
+
+score <- table(df$diagnosis, predictX)
+score
+
+
+accuracyX <- sum(diag(score)) / sum(score)
+
+print(paste('Accuracy for test', accuracyX))
+
+
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
